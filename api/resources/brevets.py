@@ -3,9 +3,50 @@ Resource: Brevets
 """
 from flask import Response, request
 from flask_restful import Resource
+import logging
+from datetime import datetime
 
 # You need to implement this in database/models/
-from database.models import Brevet
+from database.models import Brevet, Checkpoint
+
+logging.basicConfig(level=logging.DEBUG)
+
+class BrevetsApi(Resource):
+    def get(self):
+        brevets = Brevet.objects().order_by('-distance').to_json()
+        return Response(brevets, mimetype="application/json", status=200)
+
+    def post(self):
+
+        logging.debug("POST")
+
+        body = request.get_json()
+
+        logging.debug(body)
+        logging.debug(body['checkpoints'])
+
+        checkpoints = list()
+        for data in body['checkpoints']:
+            
+            checkpoints.append(
+                Checkpoint(distance=data['distance'], location=data['location'],
+                           open_time=datetime.fromisoformat(data['open_time']),
+                           close_time=datetime.fromisoformat(data['close_time']))
+            )
+
+        logging.debug("SAVE")
+
+        for obj in body:
+            logging.debug(obj)
+            logging.debug(body[obj])
+
+        brevet = Brevet()
+        brevet.length = body['length']
+        brevet.start_time = datetime.fromisoformat(body['start_time'])
+        brevet.checkpoints = checkpoints
+        brevet.save()
+        id = brevet.id
+        return {'id' : str(id)}, 200
 
 # MongoEngine queries:
 # Brevet.objects() : similar to find_all. Returns a MongoEngine query
