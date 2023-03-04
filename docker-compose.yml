@@ -1,21 +1,25 @@
 version: '3'
 
 services:
-    brevets:
-        build: brevets/.
-        command: python -u flask_brevets.py -P $BREVETS_PORT
-        ports:
-            - "5000:$BREVETS_PORT"
-        depends_on:
-            - api
-        environment:
-            API_ADDR: api
-            API_PORT: $API_PORT
-            PORT: $BREVETS_PORT
-            DEBUG: "True"
+    # brevets:
+    #     build: brevets/.
+    #     command: python -u flask_brevets.py
+    #     ports:
+    #         - "5000:$BREVETS_PORT"
+    #     depends_on:
+    #         - api
+    #     environment:
+    #         API_ADDR: api
+    #         API_PORT: $API_PORT
+    #         PORT: $BREVETS_PORT
+    #         DEBUG: "True"
+    #     volumes:
+    #         - type: bind
+    #           source: brevets/
+    #           target: /app
     api:
         build: api/.
-        command: python -u api.py -P $API_PORT
+        command: python -u app.py
         ports:
             - "5001:$API_PORT"
         depends_on:
@@ -24,5 +28,9 @@ services:
             MONGODB_HOSTNAME: db
             PORT: $API_PORT
             DEBUG: "True"
+        volumes:
+            - type: bind
+              source: api/
+              target: /app
     db:
         image: mongo:latest
