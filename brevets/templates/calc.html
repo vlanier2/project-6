@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+   <head>
+      <title>ACP Controle Times</title>
+      <meta charset="utf-8">
+      <!-- 'viewport' is used by bootstrap to respond to device size -->
+      <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+      <!-- Bootstrap includes javascript and css  (must follow jquery) -->
+      <link
+         rel="stylesheet"
+         href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"
+         integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l"
+         crossorigin="anonymous">
+      <!-- Javascript:  JQuery from a content distribution network (CDN) -->
+      <script
+         src="https://code.jquery.com/jquery-3.5.1.min.js"
+         integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
+         crossorigin="anonymous"></script>
+      <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+         integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN"
+         crossorigin="anonymous"></script>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js"
+         integrity="sha384-+YQ4JLhjyBLPDQt//I+STsc9iw4uQqACwlvpslubQzn4u2UU2UFM80nGisd026JF"
+         crossorigin="anonymous"></script>
+      <!-- moment.js is the JavaScript equivalent of arrow.py -->
+      <script
+      src="{{ url_for('static', filename="js/moment.min.js") }}"></script>
+   </head>
+   <!-- Our own stylesheet -->
+   <link rel="stylesheet" href="/static/css/calc.css" />
+   <body>
+      <div class="container">
+         <h1>ACP Brevet Times</h1>
+         <p>This worksheet is for ACP-sanctioned brevets between 200 and 1000 kilometers.</p>
+         <!--
+            If there are any warnings or other messages from a prior
+            request to the server,
+            they appear above the rest of the content, just until the next
+            action.  (This is only on request/response transactions that
+            result in regenerating the page, not on every request.)
+            -->
+         {% with messages = get_flashed_messages() %}
+         {% if messages %}
+         <ul class="flashes">
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+         </ul>
+         {% endif %}
+         {% endwith %}
+         <!-- Design on bootstrap grid -->
+         <form id="brevet_form" role="form">
+            <div class="row">
+               <div class="col-md-4">
+                  <label>Distance</label>
+                  <select name="distance" id="brevet_dist_km">
+                     <option value="200">200km</option>
+                     <option value="300">300km</option>
+                     <option value="400">400km</option>
+                     <option value="600">600km</option>
+                     <option value="1000">1000km</option>
+                  </select>
+               </div>
+               <!-- columns 1 to 4  -->
+               <div class="col-md-4">
+                  <label>Begins at</label>
+                  <input type="datetime-local" name="begin_date" id="begin_date" value="2021-01-01T00:00" />
+               </div>
+               <div class="col-md-4">
+                  <!-- Buttons needed to operate database -->
+                  <button type="button" class="btn btn-primary" 
+                     onclick="insert_brevet_to_db()"> Submit </button>
+
+                  <button type="button" class="btn btn-primary" 
+                     onclick="get_brevet_from_db()"> Display </button>
+               </div>
+               <!-- columns 5 to 10 -->
+            </div>
+            <!-- row -->
+            <br />  <!-- a little vertical space -->
+            <!-- Although we do not use tables for general page layout, they are
+               appropriate for something that really is a table, like this
+               one.  We allocate it the full 12 columns of the bootstrap grid.
+               -->
+            <div class="row">
+               <div class="col-md-12">
+                  <table class="control_time_table">
+                     <tr>
+                        <th> Miles </th>
+                        <th> Km </th>
+                        <th>Location</th>
+                        <th>Open</th>
+                        <th>Close</th>
+                        <th>Notes</th>
+                     </tr>
+                     {% for row in range(20) %}
+                     <tr class="control">
+                        <!-- Dist (mi) -->
+                        <td><input name="miles" type="number" step="0.00001"
+                           min="0" max="900" /></td>
+                        <!-- Dist (km) -->
+                        <td><input name="km" type="number" step="0.00001"
+                           min="0" max="1100" /> </td>
+                        <!-- Location (optional) -->
+                        <td><input name="location" type="text"
+                           placeholder="Optional location name"
+                           size="20" /> </td>
+                        <!-- Open time (read only, set by JavaScript function -->
+                        <td><input name="open" type="datetime-local" readonly value="" /></td>
+                        <!-- Close time (read only, set by JavaScript function -->
+                        <td><input name="close" type="datetime-local" readonly value="" /></td>
+                        <!-- Notes (error messages for this row) -->
+                        <td class="notes"> &nbsp; </td>
+                     </tr>
+                     {% endfor %}
+                  </table>
+               </div>
+               <!-- col -->
+            </div>
+            <!-- row -->
+         </form>
+         <script type="text/javascript">
+            var SCRIPT_ROOT = {{ request.script_root|tojson|safe }} ;
+            var TIME_CALC_URL = SCRIPT_ROOT + "/_calc_times";
+            var SUBMIT_URL = SCRIPT_ROOT + "/_submit";
+            var DISPLAY_URL = SCRIPT_ROOT + "/_display";
+
+            // clears the table after submissiob
+            function clear_form() {
+               $('#begin_date').val("2021-01-01T00:00");
+               $('#brevet_dist_km').val('200');
+
+               $('.control').each(function(index) {
+                  $(this).find('input[name="miles"]').val(''),
+                  $(this).find('input[name="km"]').val(''),
+                  $(this).find('input[name="location"]').val(''),
+                  $(this).find('input[name="open"]').val(''),
+                  $(this).find('input[name="close"]').val(''),
+                  $(this).find('.notes').val('')
+               });
+            }
+
+            // handles errors for submit button
+            // 4 error cases total
+            // - table is empty
+            // - checkpoints not increasing
+            // - final checkpoint is more than 120% of brevet distance
+            // - no data found in DB (handled in display function)
+            function handle_errors_submit(brevet_data) {
+               var previous_checkpoint_km = -1;
+               for (var index = 0; index < 20; index++) {
+                  var row = brevet_data['checkpoint_' + index];
+                  if (row['km'] !== '') {
+                     if (Number(row['km']) <= previous_checkpoint_km) {
+                        window.alert("checkpoints must be increasing");
+                        return false;
+                     }
+                     previous_checkpoint_km = Number(row['km']);
+                  }
+               }
+               if (previous_checkpoint_km === -1) {
+                  window.alert("Table is Empty!");
+                  return false;
+               }
+               var max_dist = Number(brevet_data["brevet_dist_km"]);
+               max_dist = max_dist + (max_dist * 0.20);
+               if (previous_checkpoint_km >  max_dist) {
+                  window.alert("Max brevet distance is 20% more than total");
+                  return false;
+               }
+               return true;
+            }
+
+            function calc_times(control) {
+
+               // get distance and start time
+               var brevet_length = $('#brevet_dist_km').val();
+               var begin_date = $('#begin_date').val();
+               console.log(brevet_length, begin_date);
+
+               // locate edited control
+               var km = control.find("input[name='km']").val();
+               var open_time_field = control.find("input[name='open']");
+               var close_time_field = control.find("input[name='close']");
+
+              $.getJSON(TIME_CALC_URL, {km: km, date: begin_date, length: brevet_length}).done(
+                function(data) {
+                   var times = data.result;
+                   console.log("Got a response: ");
+                   console.log("Response.open = " + times.open);
+                   // This part will automatically fill the open and close slots,
+                   // so don't worry about those.
+                   open_time_field.val(moment(times.open).format("YYYY-MM-DDTHH:mm"));
+                   close_time_field.val(moment(times.close).format("YYYY-MM-DDTHH:mm"));
+                 }
+               ).fail(function(err){
+                 // In case you get an error...
+                 console.log("Error!");
+                 console.log(err);
+               });
+            }
+
+            function insert_brevet_to_db() {
+               console.log('insert');
+               var brevet_data = {}; 
+               brevet_data['begin_date'] = $('#begin_date').val();
+               brevet_data['brevet_dist_km'] = $('#brevet_dist_km').val();
+               
+               $('.control').each(function(index) {
+                  brevet_data['checkpoint_' + index] = {
+                     'miles'     : $(this).find('input[name="miles"]').val(),
+                     'km'        : $(this).find('input[name="km"]').val(),
+                     'location'  : $(this).find('input[name="location"]').val(),
+                     'open'      : $(this).find('input[name="open"]').val(),
+                     'close'     : $(this).find('input[name="close"]').val(),
+                     'notes'     : $(this).find('.notes').val()
+                  }
+               });
+
+               console.log(brevet_data);
+               if (!handle_errors_submit(brevet_data)) {
+                  return;
+               }
+
+               $.post({
+                  url: SUBMIT_URL, 
+                  data: JSON.stringify(brevet_data),
+                  contentType: "application/json",
+                  dataType: "json",
+                  success: function(response) {
+                     console.log("Server response");
+                     console.log(response);
+                  },
+                  error: function(err) {                 
+                     console.log("Error!");
+                     console.log(err.responseText);
+                     console.log(err.status);
+                  }
+               });
+
+               clear_form();
+            }
+
+            function get_brevet_from_db() {
+               console.log('pull');
+
+               $.getJSON(DISPLAY_URL).done(
+                  function(data) {
+
+                     if ($.isEmptyObject(data.result)) {
+                        window.alert("No Brevet Data Found. Did you submit anything?");
+                        return
+                     }
+
+                     var brevet_dist_km = data.result.brevet_dist_km;
+                     var begin_date = data.result.begin_date;
+
+                     console.log("response from display");
+                     console.log(data.result);
+
+                     $('#begin_date').val(begin_date);
+                     $('#brevet_dist_km').val(brevet_dist_km);
+
+                     $('.control').each(function(index) {
+                           var row = data.result['checkpoint_' + index];
+                           $(this).find('input[name="miles"]').val(row['miles']),
+                           $(this).find('input[name="km"]').val(row['km']),
+                           $(this).find('input[name="location"]').val(row['location']),
+                           $(this).find('input[name="open"]').val(row['open']),
+                           $(this).find('input[name="close"]').val(row['close']),
+                           $(this).find('.notes').val(row['notes'])
+                     });
+                  }
+               );
+            }
+
+            $(document).ready(function(){
+             // Do the following when the page is finished loading
+
+                $('input[name="miles"]').change(
+                   function() {
+                       var miles = parseFloat($(this).val());
+                       var km = (1.609344 * miles).toFixed(6) ;
+                       console.log("Converted " + miles + " miles to " + km + " kilometers");
+                       var control_entry = $(this).parents(".control")
+                       var target = control_entry.find("input[name='km']");
+                       target.val( km );
+                       // Then calculate times for this entry
+                       calc_times(control_entry);
+                    });
+
+                $('input[name="km"]').change(
+                   function() {
+                       var km = parseFloat($(this).val());
+                       var miles = (0.621371 * km).toFixed(6) ;
+                       console.log("Converted " + km + " km to " + miles + " miles");
+                       var control_entry = $(this).parents(".control")
+                       var target = control_entry.find("input[name='miles']");
+                       target.val( miles );
+                       // Then calculate times for this entry
+                       calc_times(control_entry);
+                    });
+
+               });
+
+         </script>
+      </div>
+   </body>
+</html>
