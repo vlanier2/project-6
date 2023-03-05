@@ -4,19 +4,22 @@ Replacement for RUSA ACP brevet time calculator
 
 """
 
+import os
 import flask
 from flask import request
 import arrow  # Replacement for datetime, based on moment.js
 import acp_times  # Brevet time calculations
-import brevets_db
-import config
+import brevets_db # functions for API calls
 import logging
 
 ###
 # Globals
 ###
 app = flask.Flask(__name__)
-CONFIG = config.configuration()
+
+api_addr = os.environ["API_ADDR"] 
+api_port = os.environ["API_PORT"]
+api_url = f"http://{api_addr}:{api_port}/api/brevets"
 
 ###
 # Pages
@@ -49,7 +52,6 @@ def _calc_times():
     described at https://rusa.org/octime_alg.html.
     Expects one URL-encoded argument, the number of miles.
     """
-    # start of edited code
     app.logger.debug("Got a JSON request")
     km = request.args.get('km', 999, type=float)
     start_time = request.args.get('date', type=str)
@@ -75,26 +77,25 @@ def _calc_times():
 @app.route("/_submit", methods=["POST"])
 def _insert():
     data = request.get_json()
-    app.logger.debug(f"In MONGODB {data}")
-    brevets_db.insert(data)
-
+    app.logger.debug(f"In FlaskBrevets {data}")
+    brevets_db.APIinsert(data, api_url)
     return flask.jsonify({'success' : True})
 
 @app.route("/_display")
 def _display():
     
-    query = brevets_db.display()
+    query = brevets_db.APIdisplay(api_url)
     app.logger.debug(f"Out MONGO DB {query}")
 
     if query == {}:
         return flask.jsonify(result={})
-
+    
     return flask.jsonify(result=query)
 
-app.debug = CONFIG.DEBUG
+app.debug = os.environ["DEBUG"]
 if app.debug:
     app.logger.setLevel(logging.DEBUG)
 
 if __name__ == "__main__":
-    print("Opening for global access on port {}".format(CONFIG.PORT))
-    app.run(port=CONFIG.PORT, host="0.0.0.0")
+    app.logger.debug("Opening for global access on port {}".format(os.environ["PORT"]))
+    app.run(port=os.environ["PORT"], host="0.0.0.0")

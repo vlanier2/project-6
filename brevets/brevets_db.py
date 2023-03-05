@@ -1,20 +1,28 @@
-from pymongo import MongoClient
-import os
+import requests
+from datetime import datetime
 
-client = MongoClient('mongodb://' + os.environ['MONGODB_HOSTNAME'], 27017)
-db = client.brevets
+def APIinsert(data_dict, api_url):
 
-def insert(data_dict):
-
-    # update the one race named mybrevet - upsert = create if not found
-    db.races.update_one({'name' : 'mybrevet'}, {'$set' : data_dict}, upsert=True)
-
-def display():
+    result = requests.post(
+        api_url, 
+        headers={"Content-Type" : "application/json"}, 
+        json=data_dict)
     
-    query = db.races.find_one()
+    return result.json()
 
-    if query is None:
+def APIdisplay(api_url):
+    
+    result = requests.get(api_url)
+
+    if result.status_code != 200:
         return {}
+    
+    last_brevet_saved = result.json()[-1]
+    last_brevet_saved.pop('_id')
+    last_brevet_saved['start_time'] = datetime.utcfromtimestamp(last_brevet_saved['start_time']['$date'] // 1000).isoformat()
+    for checkpoint in last_brevet_saved['checkpoints']:
+        checkpoint['open_time'] = datetime.utcfromtimestamp(checkpoint['open_time']['$date'] // 1000).isoformat()
+        checkpoint['close_time'] = datetime.utcfromtimestamp(checkpoint['close_time']['$date'] // 1000).isoformat()
+        checkpoint.pop('_cls')
 
-    query.pop("_id") # mongodb id object is not serializable (important for jsonify)
-    return query
+    return last_brevet_saved
