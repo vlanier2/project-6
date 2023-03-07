@@ -11,7 +11,7 @@ This project consists of a web application that is based on RUSA's online calcul
 
 The webpage contains a spreadsheet for calculating start and end times for control points in a given brevet. After a control point distance is given, the spreadsheet automatically updates without refresh. The project makes use of AJAX, JQuery, and bootstrap for a dynamic webpage. A flask server supplies the page template and responds to AJAX queries to update control point times. 
 
-New in project 5 - An additonal container running MongoDB is added to save and recover brevet data. Once a brevet is entered, the submit button will insert the brevet data into the database and clear the form. The display button will recover the previously added brevet. Only one brevet is saved at a time. Docker compose is used to connect the two containers in the full application (see setup).
+Two additonal containers are added to supply a RESTful API connected to a MongoDB. Once a brevet is entered, the submit button will trigger a call to the API and the brevet data is entered into the database, and the form is cleared. The display button will recover the previously added brevet, also calling the API. Only one brevet is recoverable at a time. Docker compose is used to coordinate the three containers and connect the two containers responsible for supplying the API and manging the database in the full application (see setup).
 
 ## Algorithm
 
@@ -52,8 +52,12 @@ The closing time for a control within the first 60km is based on 20 km/hr, plus 
 ### ~~Supplying a Credentials File~~
 
 ~~credentials-skel.ini should be replaced by a credentials.ini file specifying the port and debug mode. If no credentials file is provided, it defaults to port 5000 and debug=True. *Note: The credentials.ini file should be placed in the /brevets directory so it can be accessed within the container.~~
-*** Supplying a credentials file is no longer required. It can still be used to set debug, however specifying a port could cause conflicts with docker compose.
-*** You can set desired ports by editing docker-compose.yml instead of supplying a credentials file.
+*** Supplying a credentials file is no longer required. (See Supplying a .env file)
+~~*** You can set desired ports by editing docker-compose.yml instead of supplying a credentials file.~~
+
+### Supplying a .env file
+
+A .env file should be supplied to set the port for the API and Webpage. Copy the .env-example and rename to '.env', change the ports as desired. Additonal environment variables can be set in the docker-compose.yml file if needed.
 
 ### Building Containers / Startup
 
@@ -79,9 +83,76 @@ On submission of an invalid brevet a popup will show and the brevet will not be 
 
 To recover the previously entered brevet, click the display button in the top right. A popup will show if there is no saved brevet.
 
+## RESTful API Usage
+
+A RESTful API is included for interactions with the MongoDB.
+
+The following http requests are supported with the following routes:
+
+```
+GET http://<API>:<PORT>/api/brevets
+```
+Will return a JSON containing a list of all brevets in the database.
+
+```
+GET http://<API>:<PORT>/api/brevet/<ID>
+```
+Will return the brevet with the ID supplied
+
+```
+POST http://<API>:<PORT>/api/brevets
+
+// EXAMPLE FORMAT OF BREVET POST REQUEST (note ISO date format)
+POST    "http://localhost:5001/api/brevets" 
+        headers={"Content-Type" : "application/json"}, 
+        json={
+            "length":1000, 
+            "start_time":"2023-03-04T16:30:15", 
+            "checkpoints": [
+                {"distance" : 0.0, 
+                "location" : "paris", 
+                "open_time":"2023-03-04T16:30:15", 
+                "close_time": "2023-03-04T16:30:15"}
+                ]
+            }
+```
+Will insert the supplied JSON brevet into the database
+
+```
+DELETE http://<API>:<PORT>/api/brevet/<ID>
+```
+will delete the brevet with the ID supplied if found in the database.
+
+```
+PUT http://<API>:<PORT>/api/brevet/<ID>
+```
+Will update the brevet with the ID supplied. See post request for example brevet format.
+
+### Data Schema
+
+The MongoDB uses the following data schema for Checkpoints and Brevets:
+
+- Checkpoint:
+
+    - distance: float, required, (checkpoint distance in kilometers),
+
+    - location: string, optional, (checkpoint location name),
+
+    - open_time: datetime, required, (checkpoint opening time),
+
+    - close_time: datetime, required, (checkpoint closing time).
+
+- Brevet:
+
+    - length: float, required, (brevet distance in kilometers),
+
+    - start_time: datetime, required, (brevet start time),
+
+    - checkpoints: list of Checkpoints, required, (checkpoints).
+
 ## Testing
 
-Six tests of the brevet time computation are included. Along with two tests of insert and fetch to the mongoDB.
+Six tests of the brevet time computation are included. 
 
 Tests can be run with the following command after starting the containers.
 
@@ -101,4 +172,10 @@ Simply shut down the flask app with ctrl-c in your terminal, and/or stop the run
 
 ```
 docker compose stop
+```
+
+If you would like to clear the database, you can run:
+
+```
+docker compose down
 ```
