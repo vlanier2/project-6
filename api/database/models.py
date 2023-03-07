@@ -25,7 +25,7 @@ class Brevet(Document):
     """
     length = FloatField(required=True)
     start_time = DateTimeField(required=True)
-    checkpoints = ListField(required=True)
+    checkpoints = EmbeddedDocumentListField(document_type=Checkpoint, required=True)
 
 
 def build_checkpoint_list(request_body_checkpoints):
