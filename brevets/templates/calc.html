@@ -153,20 +153,23 @@
                   var row = brevet_data['checkpoints'][index];
                   if (row['distance'] !== '') {
                      if (Number(row['distance']) <= previous_checkpoint_km) {
-                        window.alert("checkpoints must be increasing");
+                        //window.alert("checkpoints must be increasing");
+                        console.log("checkpoints must be increasing");
                         return false;
                      }
                      previous_checkpoint_km = Number(row['distance']);
                   }
                }
                if (previous_checkpoint_km === -1) {
-                  window.alert("Table is Empty!");
+                  //window.alert("Table is Empty!");
+                  console.log("Table is Empty!");
                   return false;
                }
                var max_dist = Number(brevet_data["length"]);
                max_dist = max_dist + (max_dist * 0.20);
                if (previous_checkpoint_km >  max_dist) {
-                  window.alert("Max brevet distance is 20% more than total");
+                  //window.alert("Max brevet distance is 20% more than total");
+                  console.log("Max brevet distance is 20% more than total");
                   return false;
                }
                return true;
@@ -253,7 +256,8 @@
                   function(data) {
 
                      if ($.isEmptyObject(data.result)) {
-                        window.alert("No Brevet Data Found. Did you submit anything?");
+                        //window.alert("No Brevet Data Found. Did you submit anything?");
+                        console.log("No Brevet Data Found. Did you submit anything?");
                         return
                      }
 
